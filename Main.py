@@ -1,14 +1,18 @@
 #! /usr/bin/env python3
 import sys
 # append this as the system path
-sys.path.append('gpt2-translator-pytorch')
-import pytorch_influence_functions as ptif
-from train.new_dataloader import load_trained_model
+sys.path.append('pytorch_influence_functions')
+from pytorch_influence_functions.utils import *
+from pytorch_influence_functions.calc_influence_function import *
+from pytorch_influence_functions.influence_function import * 
+from MT_Dataloader import load_trained_model
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
 if __name__ == "__main__":
-    config = ptif.get_default_config()
+    config = get_default_config()
     # load the pretrained transformer model
-    model = load_trained_model('D:\OneDrive - The University of Liverpool\LLMs\gpt2-translator-pytorch\model\huggingface')
+    #model = load_trained_model('/home/psen/Machine-Translation/model')
+    model = GPT2LMHeadModel.from_pretrained('/home/psen/Machine-Translation/model') 
     #total_params = sum(p.numel() for p in model.parameters()) #numel:Returns the total number of elements in the input tensor.
     # it's the index of test sample will be used in calculation later
 
@@ -24,7 +28,7 @@ if __name__ == "__main__":
 
     # set the directory for log file
     # ptif.init_logging('/users/yangwr/InfluenceFunctions/logfile.log')
-    ptif.init_logging(config['logdir'])
+    init_logging(config['logdir'])
 
     # Implement influence function
-    influences = ptif.calc_img_wise(config, model, train_file, test_file, sample_list)
+    influences = calc_img_wise(config, model, train_file, test_file, sample_list)

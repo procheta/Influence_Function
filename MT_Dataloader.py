@@ -15,9 +15,9 @@ def tokenize_data(dataset, tokenizer, max_length=128):
     """对数据集进行分词处理"""
 
     def tokenize_function(examples):
-        inputs = tokenizer(examples['source'], padding='max_length', truncation=True, max_length=max_length,
+        inputs = tokenizer(examples['Bad_Practices'], padding='max_length', truncation=True, max_length=max_length,
                            return_tensors="pt")
-        labels = tokenizer(examples['label'], padding='max_length', truncation=True, max_length=max_length,
+        labels = tokenizer(examples['Good_Practices'], padding='max_length', truncation=True, max_length=max_length,
                            return_tensors="pt")
         return {'input_ids': inputs['input_ids'], 'attention_mask': inputs['attention_mask'],
                 'labels': labels['input_ids']}
@@ -45,8 +45,8 @@ def get_data(train_file, test_file, model_name="gpt2", batch_size=32, max_length
     tokenizer.pad_token = tokenizer.eos_token
 
     # 加载数据集
-    train_dataset = load_data(train_file)
-    test_dataset = load_data(test_file)
+    train_dataset = load_data(train_file,sep="###")
+    test_dataset = load_data(test_file, sep="###")
 
     # 分词处理
     train_encoded = tokenize_data(train_dataset, tokenizer, max_length)
@@ -57,10 +57,10 @@ def get_data(train_file, test_file, model_name="gpt2", batch_size=32, max_length
     test_loader = create_dataloader(test_encoded, batch_size)
 
     # 提取原始文本和标签
-    train_texts = train_dataset['source']
-    train_labels = train_dataset['label']
-    test_texts = test_dataset['source']
-    test_labels = test_dataset['label']
+    train_texts = train_dataset['Bad_Practices']
+    train_labels = train_dataset['Good_Practices']
+    test_texts = test_dataset['Bad_Practices']
+    test_labels = test_dataset['Good_Practices']
 
     return {
         'train_loader': train_loader,
@@ -78,25 +78,39 @@ def get_data(train_file, test_file, model_name="gpt2", batch_size=32, max_length
 def process_test_samples_with_neighbors(test_file, train_file, model_name="gpt2", batch_size=32, max_length=128):
     """处理测试样本及其对应的训练样本最近邻"""
     # 加载测试数据
-    test_data = load_dataset("csv", data_files=test_file, sep=",")["train"]
+    test_data = load_dataset("csv", data_files='test_50.csv', sep=",")["train"]
 
     # 加载和处理训练数据
     data = get_data(train_file, test_file, model_name, batch_size, max_length)
     train_encoded = data['train_encoded']
-
     for i, row in enumerate(test_data):
-        test_sample = row['source']
+        test_sample = row['test_sample']
         try:
             # 使用 numpy 解析标签字符串
-            neighbor_indices = np.fromstring(row['label'].strip('[]'), sep=' ', dtype=int)
-
+            x=row["helpful_sample_id"]
+            x=x.replace("[","")
+            x=x.replace("]","")
+            xx=x.split(" ")
+            neighbor_indices=[]
+            for x1 in xx:
+             try:
+              neighbor_indices.append(int(x1))
+             except:
+                c=0
+            #neighbor_indices = np.fromstring('1 2 3 4',dtype=int,  sep=' ')
+            #print(neighbor_indices)
             # 检查索引是否有效
             max_index = len(train_encoded)
-            valid_indices = neighbor_indices[(neighbor_indices >= 0) & (neighbor_indices < max_index)]
+            valid_indices=[]
+            for j in neighbor_indices:
+             if j >=0 and j < max_index:
+              valid_indices.append(j)
+            #valid_indices = neighbor_indices[(neighbor_indices >= 0) & (neighbor_indices < max_index)]
+            print("valid", valid_indices)
             if len(valid_indices) != len(neighbor_indices):
                 logging.warning(
                     f"Some indices were out of range for sample {i}. Original length: {len(neighbor_indices)}, Valid length: {len(valid_indices)}")
-
+            print("train encoded", train_encoded)
             # 为当前测试样本创建最近邻训练样本的DataLoader
             neighbors_loader = get_nearest_neighbors_loader(i, valid_indices, train_encoded, batch_size)
 
